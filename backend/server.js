@@ -4,6 +4,9 @@ const app = express();
 
 const PORT = 5000;
 
+// Connect to MySQL database
+require("./db");
+
 // Middleware
 app.use(express.json());
 
@@ -23,6 +26,9 @@ app.use((req, res, next) => {
 // Import book routes
 const bookRoutes = require("./routes/bookRoutes");
 
+// Import authentication routes
+const authRoutes = require("./routes/authRoutes");
+
 // Home route
 app.get("/", (req, res) => {
     res.send("ReadMate Backend is running!");
@@ -30,6 +36,9 @@ app.get("/", (req, res) => {
 
 // Book API routes
 app.use("/api/books", bookRoutes);
+
+// Authentication API routes
+app.use("/api/auth", authRoutes);
 
 // Start server
 app.listen(PORT, () => {

@@ -20114,3 +20114,262 @@ main {
     line-height: 1.75;
   }
 }
+/* =====================================
+   PROFILE DROPDOWN
+===================================== */
+
+.profile-menu-container {
+  position: relative;
+}
+
+.profile-menu-container .profile-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  cursor: pointer;
+}
+
+.profile-dropdown {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  width: 180px;
+  padding: 7px;
+  background: #fffdf9;
+  border: 1px solid #eadccd;
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(65, 43, 25, 0.14);
+  z-index: 1000;
+}
+
+.profile-dropdown-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 12px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: #49372c;
+  text-decoration: none;
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+  box-sizing: border-box;
+}
+
+.profile-dropdown-item:hover {
+  background: #f7ecdf;
+}
+
+.logout-item {
+  color: #c45132;
+}
+
+/* =====================================
+   LOGOUT CONFIRMATION BACKDROP
+===================================== */
+
+.logout-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 20px;
+  background: rgba(42, 31, 24, 0.48);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+}
+
+/* =====================================
+   LOGOUT CONFIRMATION CARD
+===================================== */
+
+.logout-modal {
+  position: relative;
+  width: 100%;
+  max-width: 390px;
+  padding: 34px 28px 28px;
+  box-sizing: border-box;
+
+  background: #fffaf3;
+  border: 1px solid #ead9c6;
+  border-radius: 22px;
+
+  box-shadow: 0 24px 70px rgba(48, 32, 20, 0.22);
+  text-align: center;
+
+  animation: logoutModalAppear 0.2s ease-out;
+}
+
+/* Close button */
+
+.logout-modal-close {
+  position: absolute;
+  top: 13px;
+  right: 13px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 32px;
+  height: 32px;
+  padding: 0;
+
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: #8b7665;
+  cursor: pointer;
+}
+
+.logout-modal-close:hover {
+  background: #f3e7d8;
+  color: #49372c;
+}
+
+/* Logout icon */
+
+.logout-modal-icon {
+  width: 60px;
+  height: 60px;
+  margin: 0 auto 19px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  color: #b9642d;
+  background: #f6e5d2;
+  border: 1px solid #efd6bd;
+  border-radius: 19px;
+}
+
+/* Heading */
+
+.logout-modal h2 {
+  margin: 0 0 12px;
+  color: #38291f;
+  font-size: 23px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+/* Description */
+
+.logout-modal p {
+  max-width: 290px;
+  margin: 0 auto 26px;
+
+  color: #806b5c;
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+/* =====================================
+   LOGOUT ACTION BUTTONS
+===================================== */
+
+.logout-modal-actions {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+}
+
+.logout-modal-actions button {
+  flex: 1;
+  min-height: 45px;
+  padding: 11px 14px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+
+  border-radius: 10px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease,
+    transform 0.2s ease;
+}
+
+.logout-modal-actions button:hover {
+  transform: translateY(-1px);
+}
+
+/* Cancel button */
+
+.logout-cancel-button {
+  color: #594538;
+  background: #fffaf3;
+  border: 1px solid #e5d4c2;
+}
+
+.logout-cancel-button:hover {
+  background: #f5eadc;
+  border-color: #d7bea5;
+}
+
+/* Confirm button */
+
+.logout-confirm-button {
+  color: #ffffff;
+  background: #b9642d;
+  border: 1px solid #b9642d;
+}
+
+.logout-confirm-button:hover {
+  background: #984b20;
+  border-color: #984b20;
+}
+
+/* =====================================
+   ANIMATION
+===================================== */
+
+@keyframes logoutModalAppear {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Smaller screens */
+
+@media (max-width: 480px) {
+  .logout-modal {
+    max-width: 350px;
+    padding: 32px 20px 22px;
+  }
+
+  .logout-modal h2 {
+    font-size: 21px;
+  }
+
+  .logout-modal-actions {
+    gap: 8px;
+  }
+
+  .logout-modal-actions button {
+    padding: 10px 8px;
+    font-size: 12px;
+  }
+}

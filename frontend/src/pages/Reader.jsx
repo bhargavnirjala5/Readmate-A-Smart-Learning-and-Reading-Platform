@@ -424,6 +424,8 @@ export default function Reader() {
     () => localStorage.getItem("readly_voice_type") || "female"
   );
   const [availableVoices, setAvailableVoices] = useState([]);
+  // Invalidates delayed speech callbacks when the user stops or changes voice.
+  const playbackSessionRef = useRef(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentSentence, setCurrentSentence] = useState(-1);
   const [isBookmarked, setIsBookmarked] = useState(false);
@@ -483,6 +485,7 @@ export default function Reader() {
 
   useEffect(() => {
     localStorage.setItem("readly_voice_type", voiceType);
+    playbackSessionRef.current += 1;
     window.speechSynthesis?.cancel();
     setIsPlaying(false);
     setCurrentSentence(-1);
@@ -603,7 +606,7 @@ export default function Reader() {
     }
   };
 
-  const findVoice = () => {
+  const findVoice = (requestedType = voiceType) => {
     const browserVoices =
       availableVoices.length
         ? availableVoices
@@ -611,43 +614,33 @@ export default function Reader() {
 
     if (!browserVoices.length) return null;
 
-    const english = browserVoices.filter((v) =>
-      v.lang?.toLowerCase().startsWith("en")
+    // Prefer Indian English first. Actual options depend on voices installed
+    // in the user's browser/operating system.
+    const indianEnglish = browserVoices.filter((voice) =>
+      /^en[-_]in$/i.test(voice.lang || "")
     );
-    const list = english.length ? english : browserVoices;
+    const english = browserVoices.filter((voice) =>
+      /^en([-_]|$)/i.test(voice.lang || "")
+    );
+    const list = indianEnglish.length
+      ? indianEnglish
+      : english.length
+        ? english
+        : browserVoices;
 
     const femaleNames =
-      /zira|samantha|karen|susan|aria|jenny|victoria|hazel|sara|libby|sonia|ava|emma|olivia|moira|fiona|female/i;
-
+      /heera|zira|samantha|karen|susan|aria|jenny|victoria|hazel|sara|libby|sonia|ava|emma|olivia|moira|fiona|female/i;
     const maleNames =
-      /david|mark|guy|ryan|george|daniel|james|thomas|alex|fred|ralph|michael|arthur|brian|eric|male/i;
+      /ravi|david|mark|guy|ryan|george|daniel|james|thomas|alex|fred|ralph|michael|arthur|brian|eric|\bmale\b/i;
 
-    const pattern = voiceType === "female" ? femaleNames : maleNames;
-    const matching = list.find((voice) => pattern.test(voice.name));
-
+    const pattern = requestedType === "female" ? femaleNames : maleNames;
+    const matching = list.find((voice) =>
+      pattern.test(`${voice.name || ""} ${voice.voiceURI || ""}`)
+    );
     if (matching) return matching;
 
-    // Extra matching for common Microsoft/Google voice identifiers.
-    if (voiceType === "male") {
-      const likelyMale = list.find((voice) =>
-        /microsoft.*(david|mark|guy|ryan|george|james|thomas)|google.*(male|en-us-wavenet-d|en-us-wavenet-b)/i.test(
-          `${voice.name} ${voice.voiceURI}`
-        )
-      );
-      if (likelyMale) return likelyMale;
-    }
-
-    if (voiceType === "female") {
-      const likelyFemale = list.find((voice) =>
-        /microsoft.*(zira|aria|jenny|sara|libby)|google.*(female|en-us-wavenet-c|en-us-wavenet-e)/i.test(
-          `${voice.name} ${voice.voiceURI}`
-        )
-      );
-      if (likelyFemale) return likelyFemale;
-    }
-
-    // Some browsers do not expose gender information at all.
-    // In that case use the first English voice available.
+    // If a gender-labelled Indian voice is unavailable, prefer another Indian
+    // English voice rather than silently switching to a non-Indian accent.
     return list[0] || null;
   };
 
@@ -663,16 +656,18 @@ export default function Reader() {
     }
 
     const synth = window.speechSynthesis;
+    const sessionId = ++playbackSessionRef.current;
+    const selectedVoiceType = voiceType;
     synth.cancel();
 
     let index = Math.max(0, Math.min(start, sentences.length - 1));
-
-    // Update the visible sentence immediately. This prevents the UI from
-    // getting stuck on "Pause" with an empty "NOW READING" area.
     setCurrentSentence(index);
     setIsPlaying(true);
 
     const speakNext = () => {
+      // Ignore callbacks left over from a previous play/stop/voice selection.
+      if (sessionId !== playbackSessionRef.current) return;
+
       if (index >= sentences.length) {
         setIsPlaying(false);
         setCurrentSentence(-1);
@@ -680,7 +675,6 @@ export default function Reader() {
       }
 
       const text = String(sentences[index] || "").trim();
-
       if (!text) {
         index += 1;
         speakNext();
@@ -688,27 +682,27 @@ export default function Reader() {
       }
 
       const utterance = new SpeechSynthesisUtterance(text);
-      const voice = findVoice();
-
+      const voice = findVoice(selectedVoiceType);
       if (voice) {
         utterance.voice = voice;
-        utterance.lang = voice.lang || "en-US";
+        utterance.lang = voice.lang || "en-IN";
       } else {
-        utterance.lang = "en-US";
+        utterance.lang = "en-IN";
       }
 
       utterance.rate = 0.92;
-      utterance.pitch = voiceType === "female" ? 1.05 : 0.9;
+      utterance.pitch = selectedVoiceType === "female" ? 1.05 : 0.9;
       utterance.volume = 1;
 
       utterance.onstart = () => {
+        if (sessionId !== playbackSessionRef.current) return;
         setIsPlaying(true);
         setCurrentSentence(index);
       };
 
       utterance.onend = () => {
+        if (sessionId !== playbackSessionRef.current) return;
         index += 1;
-
         if (index < sentences.length) {
           window.setTimeout(speakNext, 100);
         } else {
@@ -718,33 +712,35 @@ export default function Reader() {
       };
 
       utterance.onerror = (event) => {
+        if (sessionId !== playbackSessionRef.current) return;
         console.error("Speech synthesis error:", event?.error || event);
         setIsPlaying(false);
         setCurrentSentence(-1);
-
         if (event?.error !== "canceled" && event?.error !== "interrupted") {
-          alert("Voice playback could not start. Please press Listen again.");
+          // Do not block the reader with an alert; the user can press Listen again.
+          console.warn("Voice playback could not start. Try Listen again or choose another available voice.");
         }
       };
 
       try {
         synth.speak(utterance);
-
-        // Chromium/Edge sometimes leaves synthesis paused after cancel().
+        // Chromium/Edge can need a resume after cancel() before a new utterance.
         window.setTimeout(() => {
+          if (sessionId !== playbackSessionRef.current) return;
           try {
             if (synth.paused) synth.resume();
           } catch {}
-        }, 150);
+        }, 200);
       } catch (error) {
+        if (sessionId !== playbackSessionRef.current) return;
         console.error("Unable to start speech synthesis:", error);
         setIsPlaying(false);
         setCurrentSentence(-1);
       }
     };
 
-    // Let cancel() finish before speaking the new utterance.
-    window.setTimeout(speakNext, 80);
+    // Let the browser finish cancel() before enqueueing the new voice.
+    window.setTimeout(speakNext, 120);
   };
 
   const toggleListen = () => {
@@ -764,9 +760,19 @@ export default function Reader() {
   };
 
   const stopListen = () => {
+    playbackSessionRef.current += 1;
     window.speechSynthesis?.cancel();
     setIsPlaying(false);
     setCurrentSentence(-1);
+  };
+
+  const changeVoice = (type) => {
+    // Cancel immediately and invalidate any pending sentence timeout.
+    playbackSessionRef.current += 1;
+    window.speechSynthesis?.cancel();
+    setIsPlaying(false);
+    setCurrentSentence(-1);
+    setVoiceType(type);
   };
 
   const toggleBookmark = () => {
@@ -1189,8 +1195,8 @@ export default function Reader() {
           <div className="readly-card">
             <div className="readly-card-title">VOICE</div>
             <div className="readly-voice">
-              <button className={voiceType === "female" ? "active" : ""} onClick={() => setVoiceType("female")}>♀ Female Voice</button>
-              <button className={voiceType === "male" ? "active" : ""} onClick={() => setVoiceType("male")}>♂ Male Voice</button>
+              <button className={voiceType === "female" ? "active" : ""} onClick={() => changeVoice("female")}>♀ Female Voice</button>
+              <button className={voiceType === "male" ? "active" : ""} onClick={() => changeVoice("male")}>♂ Male Voice</button>
             </div>
           </div>
 

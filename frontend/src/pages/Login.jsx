@@ -1,5 +1,7 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
+import { GoogleLogin } from "@react-oauth/google";
+
 import {
   BookOpen,
   Mail,
@@ -8,6 +10,7 @@ import {
   EyeOff,
   ArrowRight,
 } from "lucide-react";
+
 import "./Login.css";
 
 function Login() {
@@ -15,37 +18,122 @@ function Login() {
 
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
-
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e) => {
+  // Save the login session
+  const saveLoginSession = (data) => {
+    if (!data.token || !data.user) {
+      throw new Error("Authentication response is incomplete.");
+    }
+
+    const userData = {
+      id: data.user.id,
+      name: data.user.name,
+      email: data.user.email,
+    };
+
+    localStorage.removeItem("readmate_token");
+    localStorage.removeItem("readmate_user");
+    sessionStorage.removeItem("readmate_token");
+    sessionStorage.removeItem("readmate_user");
+
+    const storage = rememberMe ? localStorage : sessionStorage;
+
+    storage.setItem("readmate_token", data.token);
+    storage.setItem("readmate_user", JSON.stringify(userData));
+
+    navigate("/", { replace: true });
+  };
+
+  // Email and password login
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    setError("");
+    setLoading(true);
 
-    // Demo login credentials
-    const correctEmail = "student@gmail.com";
-    const correctPassword = "123456";
+    try {
+      const response = await fetch(
+        "http://localhost:5000/api/auth/login",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            email: email.trim(),
+            password,
+          }),
+        }
+      );
 
-    if (email === correctEmail && password === correctPassword) {
-      setError("");
+      const data = await response.json();
 
-      // Go to Home page after successful login
-      navigate("/");
-    } else {
-      setError("Invalid email or password.");
+      if (!response.ok) {
+        throw new Error(data.message || "Invalid email or password.");
+      }
+
+      saveLoginSession(data);
+    } catch (err) {
+      console.error("Login Error:", err);
+
+      setError(
+        err.message || "Unable to connect to the server."
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Google login
+  const handleGoogleSuccess = async (credentialResponse) => {
+    setError("");
+    setLoading(true);
+
+    try {
+      if (!credentialResponse.credential) {
+        throw new Error("Google did not return a login credential.");
+      }
+
+      const response = await fetch(
+        "http://localhost:5000/api/auth/google",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            credential: credentialResponse.credential,
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Google login failed.");
+      }
+
+      saveLoginSession(data);
+    } catch (err) {
+      console.error("Google Login Error:", err);
+
+      setError(
+        err.message || "Google login failed. Please try again."
+      );
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
     <main className="login-page">
-
-      {/* Background decoration */}
       <div className="login-background-shape shape-one"></div>
       <div className="login-background-shape shape-two"></div>
 
       <section className="login-card">
-
         {/* Logo */}
         <div className="login-logo">
           <div className="login-logo-icon">
@@ -57,31 +145,19 @@ function Login() {
           </span>
         </div>
 
-
         {/* Heading */}
         <div className="login-heading">
-
           <h1>
             Welcome Back
             <span>✦</span>
           </h1>
 
-          <p>
-            Log in to continue your reading journey.
-          </p>
-
+          <p>Log in to continue your reading journey.</p>
         </div>
 
-
-        {/* Login Form */}
-        <form
-          className="login-form"
-          onSubmit={handleSubmit}
-        >
-
-          {/* Email */}
+        {/* Email and password form */}
+        <form className="login-form" onSubmit={handleSubmit}>
           <div className="login-input-wrapper">
-
             <Mail size={19} />
 
             <input
@@ -92,15 +168,12 @@ function Login() {
                 setEmail(e.target.value);
                 setError("");
               }}
+              autoComplete="email"
               required
             />
-
           </div>
 
-
-          {/* Password */}
           <div className="login-input-wrapper">
-
             <Lock size={19} />
 
             <input
@@ -111,15 +184,14 @@ function Login() {
                 setPassword(e.target.value);
                 setError("");
               }}
+              autoComplete="current-password"
               required
             />
 
             <button
               type="button"
               className="password-toggle"
-              onClick={() =>
-                setShowPassword(!showPassword)
-              }
+              onClick={() => setShowPassword((prev) => !prev)}
               aria-label="Show or hide password"
             >
               {showPassword ? (
@@ -128,13 +200,11 @@ function Login() {
                 <Eye size={19} />
               )}
             </button>
-
           </div>
 
-
-          {/* Error message */}
           {error && (
             <p
+              role="alert"
               style={{
                 color: "#c45132",
                 fontSize: "13px",
@@ -145,119 +215,78 @@ function Login() {
             </p>
           )}
 
-
-          {/* Remember + Forgot */}
           <div className="login-options">
-
             <label className="remember-option">
-
               <input
                 type="checkbox"
                 checked={rememberMe}
-                onChange={(e) =>
-                  setRememberMe(e.target.checked)
-                }
+                onChange={(e) => setRememberMe(e.target.checked)}
               />
 
               <span>Remember me</span>
-
             </label>
 
             <button
               type="button"
               className="forgot-button"
+              onClick={() =>
+                setError("Password recovery is not available yet.")
+              }
             >
               Forgot password?
             </button>
-
           </div>
 
-
-          {/* Login Button */}
           <button
             type="submit"
             className="login-button"
+            disabled={loading}
           >
-
-            <span>Login</span>
-
+            <span>{loading ? "Logging in..." : "Login"}</span>
             <ArrowRight size={19} />
-
           </button>
-
         </form>
-
 
         {/* Divider */}
         <div className="login-divider">
-
           <span></span>
-
           <p>OR</p>
-
           <span></span>
-
         </div>
 
-
-        {/* Google Button */}
-        <button
-          type="button"
-          className="google-button"
+        {/* Google Sign-In */}
+        <div
+          className="google-login-container"
+          style={{
+            display: "flex",
+            justifyContent: "center",
+            width: "100%",
+            minHeight: "42px",
+          }}
         >
-
-          <svg
-            className="google-icon"
-            viewBox="0 0 24 24"
-            aria-hidden="true"
-          >
-
-            <path
-              fill="#4285F4"
-              d="M21.35 12.27c0-.72-.06-1.42-.18-2.09H12v3.96h5.24a4.48 4.48 0 0 1-1.94 2.94v2.45h3.14c1.84-1.69 2.91-4.18 2.91-7.26Z"
-            />
-
-            <path
-              fill="#34A853"
-              d="M12 21.84c2.63 0 4.84-.87 6.45-2.36l-3.14-2.45c-.87.58-1.98.93-3.31.93-2.54 0-4.69-1.72-5.46-4.03H3.3v2.53A9.74 9.74 0 0 0 12 21.84Z"
-            />
-
-            <path
-              fill="#FBBC05"
-              d="M6.54 13.93a5.86 5.86 0 0 1 0-3.86V7.54H3.3a9.84 9.84 0 0 0 0 8.92l3.24-2.53Z"
-            />
-
-            <path
-              fill="#EA4335"
-              d="M12 6.04c1.43 0 2.71.49 3.72 1.45l2.79-2.79C16.83 3.14 14.63 2.16 12 2.16a9.74 9.74 0 0 0-8.7 5.38l3.24 2.53C7.31 7.76 9.46 6.04 12 6.04Z"
-            />
-
-          </svg>
-
-          <span>Continue with Google</span>
-
-        </button>
-
-
-        {/* Sign up */}
-        <div className="signup-text">
-
-          <span>Don't have an account?</span>
-
-          <button type="button">
-            Sign up
-          </button>
-
+          <GoogleLogin
+            onSuccess={handleGoogleSuccess}
+            onError={() => {
+              setError("Google sign-in was cancelled or failed.");
+            }}
+            theme="outline"
+            shape="rectangular"
+            size="large"
+            text="continue_with"
+            width="320"
+            useOneTap={false}
+          />
         </div>
 
+        <div className="signup-text">
+          <span>Don't have an account?</span>
+          <Link to="/signup">Sign up</Link>
+        </div>
 
-        {/* Footer */}
         <p className="login-footer">
           Your reading space, whenever you need it.
         </p>
-
       </section>
-
     </main>
   );
 }

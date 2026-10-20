@@ -1,4 +1,10 @@
-import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
+import {
+  BrowserRouter,
+  Routes,
+  Route,
+  useLocation,
+  Navigate,
+} from "react-router-dom";
 
 import Home from "./pages/Home";
 import Books from "./pages/Books";
@@ -15,142 +21,210 @@ import PdfReader from "./pages/PdfReader";
 import Scan from "./pages/Scan";
 
 import Login from "./pages/Login";
+import Signup from "./pages/Signup";
 
 import Navbar from "./components/Navbar";
 
 import "./App.css";
 
+// Check whether a login token exists
+function isLoggedIn() {
+  return Boolean(
+    localStorage.getItem("readmate_token") ||
+    sessionStorage.getItem("readmate_token")
+  );
+}
+
+// Protect pages that require login
+function ProtectedRoute({ children }) {
+  if (!isLoggedIn()) {
+    return <Navigate to="/login" replace />;
+  }
+
+  return children;
+}
+
+// Redirect logged-in users away from Login and Signup
+function PublicAuthRoute({ children }) {
+  if (isLoggedIn()) {
+    return <Navigate to="/" replace />;
+  }
+
+  return children;
+}
+
 function AppContent() {
   const location = useLocation();
 
-  const isLoginPage = location.pathname === "/login";
+  const isAuthPage =
+    location.pathname === "/login" ||
+    location.pathname === "/signup";
 
   return (
     <div className="app">
-
-      {!isLoginPage && <Navbar />}
+      {!isAuthPage && <Navbar />}
 
       <Routes>
-
-        {/* =========================
-            LOGIN
-        ========================= */}
+        {/* LOGIN */}
         <Route
           path="/login"
-          element={<Login />}
+          element={
+            <PublicAuthRoute>
+              <Login />
+            </PublicAuthRoute>
+          }
         />
 
-        {/* =========================
-            HOME
-        ========================= */}
+        {/* SIGNUP */}
+        <Route
+          path="/signup"
+          element={
+            <PublicAuthRoute>
+              <Signup />
+            </PublicAuthRoute>
+          }
+        />
+
+        {/* HOME — LOGIN REQUIRED */}
         <Route
           path="/"
-          element={<Home />}
+          element={
+            <ProtectedRoute>
+              <Home />
+            </ProtectedRoute>
+          }
         />
 
-        {/* =========================
-            BOOK LIBRARY
-        ========================= */}
+        {/* BOOK LIBRARY */}
         <Route
           path="/books"
-          element={<Books />}
+          element={
+            <ProtectedRoute>
+              <Books />
+            </ProtectedRoute>
+          }
         />
 
-        {/* =========================
-            BOOK INFORMATION
-        ========================= */}
+        {/* BOOK INFORMATION */}
         <Route
           path="/book/:bookId"
-          element={<BookInfo />}
+          element={
+            <ProtectedRoute>
+              <BookInfo />
+            </ProtectedRoute>
+          }
         />
 
-        {/* =========================
-            BOOK INDEX
-        ========================= */}
+        {/* BOOK INDEX */}
         <Route
           path="/book/:bookId/index"
-          element={<BookIndex />}
+          element={
+            <ProtectedRoute>
+              <BookIndex />
+            </ProtectedRoute>
+          }
         />
 
-        {/* =========================
-            NORMAL BOOK READER
-        ========================= */}
+        {/* NORMAL BOOK READER */}
         <Route
           path="/book/:bookId/read"
-          element={<Reader />}
+          element={
+            <ProtectedRoute>
+              <Reader />
+            </ProtectedRoute>
+          }
         />
 
         <Route
           path="/book/:bookId/read/:chapterId"
-          element={<Reader />}
+          element={
+            <ProtectedRoute>
+              <Reader />
+            </ProtectedRoute>
+          }
         />
 
-        {/* =========================
-            SCANNED BOOK READER
-        ========================= */}
+        {/* SCANNED BOOK READER */}
         <Route
           path="/scanned-reader"
-          element={<Reader />}
+          element={
+            <ProtectedRoute>
+              <Reader />
+            </ProtectedRoute>
+          }
         />
 
-        {/* =========================
-            DASHBOARD
-        ========================= */}
+        {/* DASHBOARD */}
         <Route
           path="/dashboard"
-          element={<Dashboard />}
+          element={
+            <ProtectedRoute>
+              <Dashboard />
+            </ProtectedRoute>
+          }
         />
 
-        {/* =========================
-            BOOKMARKS
-        ========================= */}
+        {/* BOOKMARKS */}
         <Route
           path="/bookmarks"
-          element={<Bookmarks />}
+          element={
+            <ProtectedRoute>
+              <Bookmarks />
+            </ProtectedRoute>
+          }
         />
 
-        {/* =========================
-            NOTES
-        ========================= */}
+        {/* NOTES */}
         <Route
           path="/notes"
-          element={<Notes />}
+          element={
+            <ProtectedRoute>
+              <Notes />
+            </ProtectedRoute>
+          }
         />
 
-        {/* =========================
-            PDF UPLOAD
-        ========================= */}
+        {/* PDF UPLOAD */}
         <Route
           path="/upload"
-          element={<Upload />}
+          element={
+            <ProtectedRoute>
+              <Upload />
+            </ProtectedRoute>
+          }
         />
 
-        {/* =========================
-            PDF READER
-        ========================= */}
+        {/* PDF READER */}
         <Route
           path="/pdf-reader"
-          element={<PdfReader />}
+          element={
+            <ProtectedRoute>
+              <PdfReader />
+            </ProtectedRoute>
+          }
         />
 
-        {/* =========================
-            CAMERA SCAN
-        ========================= */}
+        {/* CAMERA SCAN */}
         <Route
           path="/scan"
-          element={<Scan />}
+          element={
+            <ProtectedRoute>
+              <Scan />
+            </ProtectedRoute>
+          }
         />
 
-        {/* =========================
-            FALLBACK
-        ========================= */}
+        {/* UNKNOWN ROUTES */}
         <Route
           path="*"
-          element={<Home />}
+          element={
+            <Navigate
+              to={isLoggedIn() ? "/" : "/login"}
+              replace
+            />
+          }
         />
-
       </Routes>
-
     </div>
   );
 }
